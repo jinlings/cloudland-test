@@ -4,9 +4,16 @@ SPDX-License-Identifier: Apache-2.0
 */
 import React, { Component } from "react";
 import moment from "moment";
-import { Card, Table, Button, Popconfirm, message } from "antd";
+import { Card, Button, Popconfirm, message, Input } from "antd";
 import { userListApi, delUserInfor } from "../../service/users";
-import DataFilter from "../../components/Filter/DataFilter";
+import { compose } from "redux";
+import { withRouter } from "react-router";
+import { connect } from "react-redux";
+import DataTable from "../../components/DataTable/DataTable";
+import { filterUserList, fetchUserList } from "../../redux/actions/UserAction";
+
+const { Search } = Input;
+
 class Users extends Component {
   constructor(props) {
     super(props);
@@ -82,23 +89,12 @@ class Users extends Component {
   ];
 
   componentDidMount() {
-    const _this = this;
     console.log("componentDidMount:", this);
-    userListApi()
-      .then((res) => {
-        _this.setState({
-          users: res.users,
-          isLoaded: true,
-          total: res.total,
-        });
-        console.log(res);
-      })
-      .catch((error) => {
-        _this.setState({
-          isLoaded: false,
-          error: error,
-        });
-      });
+    const { userList } = this.props.user;
+    const { handleFetchUserList } = this.props;
+    if (!userList || userList.length === 0) {
+      handleFetchUserList();
+    }
   }
 
   loadData = (page, pageSize) => {
@@ -154,60 +150,68 @@ class Users extends Component {
   createUser = () => {
     this.props.history.push("/users/new");
   };
+  filter = (event) => {
+    this.props.handleFilterUserList(event.target.value);
+  };
 
   render() {
+    const { filteredList, isLoading } = this.props.user;
     return (
       <Card
-        title={"Users" + "(Total: " + this.state.total + ")"}
+        title={"Users" + "(Total: " + filteredList.length + ")"}
         extra={
-          <>
-            <DataFilter
+          <div>
+            <Search
               placeholder="Search..."
-              onSearch={(value) => console.log(value)}
+              onChange={this.filter}
               enterButton
             />
             <Button
               style={{
                 float: "right",
-                "padding-left": "10px",
-                "padding-right": "10px",
+                paddingLeft: "10px",
+                paddingRight: "10px",
               }}
               type="primary"
               onClick={this.createUser}
             >
               Create
             </Button>
-          </>
+          </div>
         }
       >
-        <Table
+        <DataTable
           rowKey="ID"
           columns={this.columns}
+          dataSource={filteredList}
           bordered
-          dataSource={this.state.users}
-          pagination={{
-            //pagination
-            total: this.state.total, //total count
-            defaultPageSize: this.state.pageSize, //default pageSize
-            showSizeChanger: true, //是否显示可以设置几条一页的选项
-            onShowSizeChange: (current, pageSize) => {
-              console.log("onShowSizeChange:", current, pageSize);
-              //当几条一页的值改变后调用函数，current：改变显示条数时当前数据所在页；pageSize:改变后的一页显示条数
-              this.toSelectchange(current, pageSize);
-            },
-
-            onChange: (current) => {
-              this.loadData(current, this.state.pageSize);
-            },
-            showTotal: () => {
-              return "Total " + this.state.total + " items";
-            },
-            pageSizeOptions: this.state.pageSizeOptions,
-          }}
-          loading={!this.state.isLoaded}
-        ></Table>
+          total={filteredList.length}
+          pageSize={this.state.pageSize}
+          scroll={{ y: 600 }}
+          onPaginationChange={this.onPaginationChange}
+          onShowSizeChange={this.onShowSizeChange}
+          pageSizeOptions={this.state.pageSizeOptions}
+          loading={isLoading}
+        />
       </Card>
     );
   }
 }
-export default Users;
+
+const mapStateToProps = ({ user }) => {
+  console.log("mapStateToProps-state", user);
+  return {
+    user,
+  };
+};
+
+const mapDispatchToProps = (dispatch) => {
+  return {
+    handleFetchUserList: () => dispatch(fetchUserList()),
+    handleFilterUserList: (keyword) => dispatch(filterUserList(keyword)),
+  };
+};
+export default compose(
+  withRouter,
+  connect(mapStateToProps, mapDispatchToProps)
+)(Users);

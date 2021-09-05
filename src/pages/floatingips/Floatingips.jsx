@@ -6,14 +6,20 @@ SPDX-License-Identifier: Apache-2.0
 
 */
 import React, { Component } from "react";
-import { Card, Button, Popconfirm, message } from "antd";
+import { Card, Button, Popconfirm, message, Input } from "antd";
 import {
   floatingipsListApi,
   delFloatingipInfor,
 } from "../../service/floatingips";
 import DataTable from "../../components/DataTable/DataTable";
-import DataFilter from "../../components/Filter/DataFilter";
-
+import { compose } from "redux";
+import { withRouter } from "react-router";
+import { connect } from "react-redux";
+import {
+  filterFloatingIpList,
+  fetchFloatingIpList,
+} from "../../redux/actions/FloatingIpAction";
+const { Search } = Input;
 class Floatingips extends Component {
   constructor(props) {
     super(props);
@@ -101,23 +107,12 @@ class Floatingips extends Component {
   };
   //组件初始化的时候执行
   componentDidMount() {
-    const _this = this;
     console.log("componentDidMount:", this);
-    floatingipsListApi()
-      .then((res) => {
-        _this.setState({
-          floatingips: res.floatingips,
-          isLoaded: true,
-          total: res.total,
-        });
-        console.log("floatingipsListApi", res);
-      })
-      .catch((error) => {
-        _this.setState({
-          isLoaded: false,
-          error: error,
-        });
-      });
+    const { floatingipsList } = this.props.floatingip;
+    const { handleFetchFloatingIpList } = this.props;
+    if (!floatingipsList || floatingipsList.length === 0) {
+      handleFetchFloatingIpList();
+    }
   }
   loadData = (page, pageSize) => {
     console.log("image-loadData~~", page, pageSize);
@@ -177,42 +172,71 @@ class Floatingips extends Component {
     //当几条一页的值改变后调用函数，current：改变显示条数时当前数据所在页；pageSize:改变后的一页显示条数
     this.toSelectchange(current, pageSize);
   };
+  filter = (event) => {
+    this.props.handleFilterFloatingIpList(event.target.value);
+  };
   render() {
+    console.log("registry-props", this.props);
+    const { filteredList, isLoading } = this.props.floatingip;
+
     return (
       <Card
-        title={"Floating IP Manage Panel" + "(Total: " + this.state.total + ")"}
+        title={
+          "Floating IP Manage Panel" + "(Total: " + filteredList.length + ")"
+        }
         extra={
-          <>
-            <DataFilter
+          <div>
+            <Search
               placeholder="Search..."
-              onSearch={(value) => console.log(value)}
+              onChange={this.filter}
               enterButton
             />
             <Button
-              style={{ float: "right" }}
+              style={{
+                float: "right",
+                paddingLeft: "10px",
+                paddingRight: "10px",
+              }}
               type="primary"
               onClick={this.createFloatingips}
             >
               Create
             </Button>
-          </>
+          </div>
         }
       >
         <DataTable
           rowKey="ID"
           columns={this.columns}
-          dataSource={this.state.floatingips}
+          dataSource={filteredList}
           bordered
-          total={this.state.total}
+          total={filteredList.length}
           pageSize={this.state.pageSize}
           scroll={{ y: 600 }}
           onPaginationChange={this.onPaginationChange}
           onShowSizeChange={this.onShowSizeChange}
           pageSizeOptions={this.state.pageSizeOptions}
-          loading={!this.state.isLoaded}
+          loading={isLoading}
         />
       </Card>
     );
   }
 }
-export default Floatingips;
+const mapStateToProps = ({ floatingip }) => {
+  console.log("mapStateToProps-state", floatingip);
+  return {
+    floatingip,
+  };
+};
+
+const mapDispatchToProps = (dispatch) => {
+  return {
+    handleFetchFloatingIpList: () => dispatch(fetchFloatingIpList()),
+    handleFilterFloatingIpList: (keyword) =>
+      dispatch(filterFloatingIpList(keyword)),
+  };
+};
+export default compose(
+  withRouter,
+  connect(mapStateToProps, mapDispatchToProps)
+)(Floatingips);

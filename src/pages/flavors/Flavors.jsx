@@ -6,10 +6,17 @@ SPDX-License-Identifier: Apache-2.0
 
 */
 import React, { Component } from "react";
-import { Card, Button, Popconfirm, message } from "antd";
+import { Card, Button, Popconfirm, message, Input } from "antd";
 import { flavorsListApi, delFlavorInfor } from "../../service/flavors";
 import DataTable from "../../components/DataTable/DataTable";
-import DataFilter from "../../components/Filter/DataFilter";
+import { compose } from "redux";
+import { withRouter } from "react-router";
+import { connect } from "react-redux";
+import {
+  filterFlavorList,
+  fetchFlavorList,
+} from "../../redux/actions/FlavorAction";
+const { Search } = Input;
 
 class Flavors extends Component {
   constructor(props) {
@@ -96,22 +103,11 @@ class Flavors extends Component {
     },
   ];
   componentDidMount() {
-    const _this = this;
-    flavorsListApi()
-      .then((res) => {
-        _this.setState({
-          flavors: res.flavors,
-          isLoaded: true,
-          total: res.total,
-        });
-        console.log("flavors:", res);
-      })
-      .catch((error) => {
-        _this.setState({
-          isLoaded: false,
-          error: error,
-        });
-      });
+    const { flavorList } = this.props.flavor;
+    const { handleFetchFlavorList } = this.props;
+    if (!flavorList || flavorList.length === 0) {
+      handleFetchFlavorList();
+    }
   }
   loadData = (page, pageSize) => {
     console.log("flavor-loadData~~", page, pageSize);
@@ -239,42 +235,67 @@ class Flavors extends Component {
     ];
     return flavorsFormList;
   };
+  filter = (event) => {
+    this.props.handleFilterFlavorList(event.target.value);
+  };
   render() {
+    const { filteredList, isLoading } = this.props.flavor;
+
     return (
       <Card
-        title={"Flavor Manage Panel " + "(Total: " + this.state.total + ")"}
+        title={"Flavor Manage Panel " + "(Total: " + filteredList.length + ")"}
         extra={
-          <>
-            <DataFilter
+          <div>
+            <Search
               placeholder="Search..."
-              onSearch={(value) => console.log(value)}
+              onChange={this.filter}
               enterButton
             />
             <Button
-              style={{ float: "right" }}
+              style={{
+                float: "right",
+                paddingLeft: "10px",
+                paddingRight: "10px",
+              }}
               type="primary"
               onClick={this.createFlavors}
             >
               Create
             </Button>
-          </>
+          </div>
         }
       >
         <DataTable
           rowKey="ID"
           columns={this.columns}
-          dataSource={this.state.flavors}
+          dataSource={filteredList}
           bordered
-          total={this.state.total}
+          total={filteredList.length}
           pageSize={this.state.pageSize}
           scroll={{ y: 600 }}
           onPaginationChange={this.onPaginationChange}
           onShowSizeChange={this.onShowSizeChange}
           pageSizeOptions={this.state.pageSizeOptions}
-          loading={!this.state.isLoaded}
+          loading={isLoading}
         />
       </Card>
     );
   }
 }
-export default Flavors;
+const mapStateToProps = ({ flavor }) => {
+  console.log("mapStateToProps-state", flavor);
+  return {
+    flavor,
+  };
+};
+
+const mapDispatchToProps = (dispatch) => {
+  return {
+    handleFetchFlavorList: () => dispatch(fetchFlavorList()),
+    handleFilterFlavorList: (keyword) => dispatch(filterFlavorList(keyword)),
+  };
+};
+export default compose(
+  withRouter,
+  connect(mapStateToProps, mapDispatchToProps)
+)(Flavors);

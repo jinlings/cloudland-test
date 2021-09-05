@@ -7,9 +7,16 @@ SPDX-License-Identifier: Apache-2.0
 */
 import React, { Component } from "react";
 import moment from "moment";
-import { Card, Table, Button, Popconfirm, message } from "antd";
+import { Card, Button, Popconfirm, message, Input } from "antd";
 import { orgsListApi, delOrgInfor } from "../../service/orgs";
-import DataFilter from "../../components/Filter/DataFilter";
+import DataTable from "../../components/DataTable/DataTable";
+
+import { compose } from "redux";
+import { withRouter } from "react-router";
+import { connect } from "react-redux";
+import { filterOrgList, fetchOrgList } from "../../redux/actions/OrgAction";
+
+const { Search } = Input;
 
 class Orgs extends Component {
   constructor(props) {
@@ -82,22 +89,11 @@ class Orgs extends Component {
   ];
 
   componentDidMount() {
-    const _this = this;
-    orgsListApi()
-      .then((res) => {
-        console.log("componentDidMount-orgsListApi:", res);
-        _this.setState({
-          orgs: res.orgs,
-          isLoaded: true,
-          total: res.total,
-        });
-      })
-      .catch((error) => {
-        _this.setState({
-          isLoaded: false,
-          error: error,
-        });
-      });
+    const { orgList } = this.props.org;
+    const { handleFetchOrgList } = this.props;
+    if (!orgList || orgList.length === 0) {
+      handleFetchOrgList();
+    }
   }
 
   loadData = (page, pageSize) => {
@@ -151,62 +147,71 @@ class Orgs extends Component {
   createOrg = () => {
     this.props.history.push("/orgs/new");
   };
+  filter = (event) => {
+    this.props.handleFilterOrgList(event.target.value);
+  };
 
   render() {
+    const { filteredList, isLoading } = this.props.org;
+
     return (
       <Card
         title={
-          "Organization Manage Panel" + "(Total: " + this.state.total + ")"
+          "Organization Manage Panel" + "(Total: " + filteredList.length + ")"
         }
         extra={
-          <>
-            <DataFilter
+          <div>
+            <Search
               placeholder="Search..."
-              onSearch={(value) => console.log(value)}
+              onChange={this.filter}
               enterButton
             />
             <Button
               style={{
                 float: "right",
-                "padding-left": "10px",
-                "padding-right": "10px",
+                paddingLeft: "10px",
+                paddingRight: "10px",
               }}
               type="primary"
               onClick={this.createOrg}
             >
               Create
             </Button>
-          </>
+          </div>
         }
       >
-        <Table
+        <DataTable
           rowKey="ID"
           columns={this.columns}
+          dataSource={filteredList}
           bordered
-          dataSource={this.state.orgs}
-          pagination={{
-            //pagination
-            total: this.state.total, //total count
-            defaultPageSize: this.state.pageSize, //default pageSize
-            showSizeChanger: true, //是否显示可以设置几条一页的选项
-            onShowSizeChange: (current, pageSize) => {
-              console.log("onShowSizeChange:", current, pageSize);
-              //当几条一页的值改变后调用函数，current：改变显示条数时当前数据所在页；pageSize:改变后的一页显示条数
-              this.toSelectchange(current, pageSize);
-            },
-
-            onChange: (current) => {
-              this.loadData(current, this.state.pageSize);
-            },
-            showTotal: () => {
-              return "Total " + this.state.total + " items";
-            },
-            pageSizeOptions: this.state.pageSizeOptions,
-          }}
-          loading={!this.state.isLoaded}
-        ></Table>
+          total={filteredList.length}
+          pageSize={this.state.pageSize}
+          scroll={{ y: 600 }}
+          onPaginationChange={this.onPaginationChange}
+          onShowSizeChange={this.onShowSizeChange}
+          pageSizeOptions={this.state.pageSizeOptions}
+          loading={isLoading}
+        />
       </Card>
     );
   }
 }
-export default Orgs;
+
+const mapStateToProps = ({ org }) => {
+  console.log("mapStateToProps-state", org);
+  return {
+    org,
+  };
+};
+
+const mapDispatchToProps = (dispatch) => {
+  return {
+    handleFetchOrgList: () => dispatch(fetchOrgList()),
+    handleFilterOrgList: (keyword) => dispatch(filterOrgList(keyword)),
+  };
+};
+export default compose(
+  withRouter,
+  connect(mapStateToProps, mapDispatchToProps)
+)(Orgs);

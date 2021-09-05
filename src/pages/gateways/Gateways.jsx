@@ -6,12 +6,15 @@ SPDX-License-Identifier: Apache-2.0
 
 */
 import React, { Component } from "react";
-import { Card, Button, Popconfirm, message } from "antd";
-import { connect } from "react-redux";
+import { Card, Button, Popconfirm, message, Input } from "antd";
 import { gwListApi, delGWInfor } from "../../service/gateways";
 import DataTable from "../../components/DataTable/DataTable";
 import "./gateways.css";
-import DataFilter from "../../components/Filter/DataFilter";
+import { compose } from "redux";
+import { withRouter } from "react-router";
+import { connect } from "react-redux";
+import { filterGwList, fetchGwList } from "../../redux/actions/GatewayAction";
+const { Search } = Input;
 
 class Gateways extends Component {
   constructor(props) {
@@ -150,25 +153,13 @@ class Gateways extends Component {
   ];
   //组件初始化的时候执行
   componentDidMount() {
-    const _this = this;
     //const hyper =''
     console.log("componentWillMount:", this.state);
-    gwListApi()
-      .then((res) => {
-        _this.setState({
-          gateways: res.gateways,
-          isLoaded: true,
-          total: res.total,
-        });
-        //hyper = this.state.gateways.Interfaces[0].Hyper + Interfaces[2].Hyper
-        console.log("gwListApi", res);
-      })
-      .catch((error) => {
-        _this.setState({
-          isLoaded: false,
-          error: error,
-        });
-      });
+    const { gwList } = this.props.gw;
+    const { handleFetchGwList } = this.props;
+    if (!gwList || gwList.length === 0) {
+      handleFetchGwList();
+    }
   }
   loadData = (page, pageSize) => {
     console.log("gw-loadData~~", page, pageSize);
@@ -230,51 +221,69 @@ class Gateways extends Component {
   createGateways = () => {
     this.props.history.push("/gateways/new");
   };
-
+  filter = (event) => {
+    this.props.handleFilterGwList(event.target.value);
+  };
   render() {
+    const { filteredList, isLoading } = this.props.gw;
+
     return (
       <Card
-        title={"Gateway Manage Panel" + "(Total: " + this.state.total + ")"}
+        title={"Gateway Manage Panel" + "(Total: " + filteredList.length + ")"}
         extra={
-          <>
-            <DataFilter
+          <div>
+            <Search
               placeholder="Search..."
-              onSearch={(value) => console.log(value)}
+              onChange={this.filter}
               enterButton
             />
             <Button
-              style={{ float: "right" }}
+              style={{
+                float: "right",
+                paddingLeft: "10px",
+                paddingRight: "10px",
+              }}
               type="primary"
               onClick={this.createGateways}
             >
               Create
             </Button>
-          </>
+          </div>
         }
       >
         <DataTable
           rowKey="ID"
           columns={this.columns}
-          dataSource={this.state.gateways}
+          dataSource={filteredList}
           bordered
-          total={this.state.total}
+          total={filteredList.length}
           pageSize={this.state.pageSize}
           scroll={{ y: 600 }}
           onPaginationChange={this.onPaginationChange}
           onShowSizeChange={this.onShowSizeChange}
           pageSizeOptions={this.state.pageSizeOptions}
-          loading={!this.state.isLoaded}
+          loading={isLoading}
         />
       </Card>
     );
   }
 }
 
-const mapStateToProps = (state, ownProps) => {
-  console.log("mapStateToProps-gw:", state);
-  // var loginInfo = JSON.parse(state.loginInfo);
-  // console.log("mapStateToProps-isadmin:", JSON.parse(state.loginInfo));
-
-  return state;
+const mapStateToProps = ({ gw, loginInfo }) => {
+  console.log("mapStateToProps-state", gw);
+  return {
+    gw,
+    loginInfo,
+  };
 };
-export default connect(mapStateToProps)(Gateways);
+
+const mapDispatchToProps = (dispatch) => {
+  return {
+    handleFetchGwList: () => dispatch(fetchGwList()),
+    handleFilterGwList: (keyword) => dispatch(filterGwList(keyword)),
+  };
+};
+export default compose(
+  withRouter,
+  connect(mapStateToProps, mapDispatchToProps)
+)(Gateways);

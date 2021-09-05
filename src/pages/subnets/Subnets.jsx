@@ -6,11 +6,15 @@ SPDX-License-Identifier: Apache-2.0
 
 */
 import React, { Component } from "react";
-import { Card, Button, Popconfirm, message } from "antd";
+import { Card, Button, Popconfirm, message, Input } from "antd";
 import { subnetsListApi, delSubInfor } from "../../service/subnets";
+import { compose } from "redux";
+import { withRouter } from "react-router";
+import { connect } from "react-redux";
 import DataTable from "../../components/DataTable/DataTable";
-import DataFilter from "../../components/Filter/DataFilter";
+import { filterSubList, fetchSubList } from "../../redux/actions/SubAction";
 
+const { Search } = Input;
 class Subnets extends Component {
   constructor(props) {
     super(props);
@@ -136,22 +140,11 @@ class Subnets extends Component {
     },
   ];
   componentDidMount() {
-    const _this = this;
-    subnetsListApi()
-      .then((res) => {
-        console.log("componentDidMount-orgsListApi:", res);
-        _this.setState({
-          subnets: res.subnets,
-          isLoaded: true,
-          total: res.total,
-        });
-      })
-      .catch((error) => {
-        _this.setState({
-          isLoaded: false,
-          error: error,
-        });
-      });
+    const { subList } = this.props.sub;
+    const { handleFetchSubList } = this.props;
+    if (!subList || subList.length === 0) {
+      handleFetchSubList();
+    }
   }
   loadData = (page, pageSize) => {
     console.log("loadData~~", page, pageSize);
@@ -214,43 +207,67 @@ class Subnets extends Component {
   createSubnets = () => {
     this.props.history.push("/subnets/new");
   };
-
+  filter = (event) => {
+    this.props.handleFilterSubList(event.target.value);
+  };
   render() {
+    const { filteredList, isLoading } = this.props.sub;
     return (
       <Card
-        title={"Subnet Manage Panel" + "(Total: " + this.state.total + ")"}
+        title={"Subnet Manage Panel" + "(Total: " + filteredList.length + ")"}
         extra={
-          <>
-            <DataFilter
+          <div>
+            <Search
               placeholder="Search..."
-              onSearch={(value) => console.log(value)}
+              onChange={this.filter}
               enterButton
             />
             <Button
-              style={{ float: "right" }}
+              style={{
+                float: "right",
+                paddingLeft: "10px",
+                paddingRight: "10px",
+              }}
               type="primary"
               onClick={this.createSubnets}
             >
               Create
             </Button>
-          </>
+          </div>
         }
       >
         <DataTable
           rowKey="ID"
           columns={this.columns}
-          dataSource={this.state.subnets}
+          dataSource={filteredList}
           bordered
-          total={this.state.total}
+          total={filteredList.length}
           pageSize={this.state.pageSize}
           scroll={{ y: 600 }}
           onPaginationChange={this.onPaginationChange}
           onShowSizeChange={this.onShowSizeChange}
           pageSizeOptions={this.state.pageSizeOptions}
-          loading={!this.state.isLoaded}
+          loading={isLoading}
         />
       </Card>
     );
   }
 }
-export default Subnets;
+
+const mapStateToProps = ({ sub }) => {
+  console.log("mapStateToProps-state", sub);
+  return {
+    sub,
+  };
+};
+
+const mapDispatchToProps = (dispatch) => {
+  return {
+    handleFetchSubList: () => dispatch(fetchSubList()),
+    handleFilterSubList: (keyword) => dispatch(filterSubList(keyword)),
+  };
+};
+export default compose(
+  withRouter,
+  connect(mapStateToProps, mapDispatchToProps)
+)(Subnets);

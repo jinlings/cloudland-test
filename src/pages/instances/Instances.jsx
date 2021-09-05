@@ -16,19 +16,23 @@ import {
   Dropdown,
   message,
   Tooltip,
+  Input,
 } from "antd";
 import {
-  insListApi,
-  delInsInfor,
-  getInsInforById,
-  editInsInfor,
+  instListApi,
+  delInstInfor,
+  getInstInforById,
+  editInstInfor,
 } from "../../service/instances";
 import DataTable from "../../components/DataTable/DataTable";
+import { filterInstList, fetchInstList } from "../../redux/actions/InstAction";
+
+import { compose } from "redux";
+import { withRouter } from "react-router";
 import { connect } from "react-redux";
 import InstModal from "./InstModal";
 import "./instances.css";
-import DataFilter from "../../components/Filter/DataFilter";
-
+const { Search } = Input;
 class Instances extends Component {
   constructor(props) {
     super(props);
@@ -143,7 +147,7 @@ class Instances extends Component {
               }}
               onConfirm={() => {
                 console.log("onClick-delete:", record);
-                delInsInfor(record.ID).then((res) => {
+                delInstInfor(record.ID).then((res) => {
                   message.success(res.Msg);
                   this.loadData(this.state.current, this.state.pageSize);
 
@@ -205,7 +209,7 @@ class Instances extends Component {
           action: "start",
         },
         () => {
-          insListApi({ flag: this.state.flag, action: this.state.action })
+          instListApi({ flag: this.state.flag, action: this.state.action })
             .then((res) => {
               console.log("startVm", res);
             })
@@ -222,7 +226,7 @@ class Instances extends Component {
           action: "shutdown",
         },
         () => {
-          insListApi({ flag: this.state.flag, action: this.state.action })
+          instListApi({ flag: this.state.flag, action: this.state.action })
             .then((res) => {
               console.log("stopVm", res);
             })
@@ -269,8 +273,8 @@ class Instances extends Component {
     }
   };
   handleChange = (id) => {
-    getInsInforById(id).then((res) => {
-      console.log("handleChange-getInsInforById-res:", res);
+    getInstInforById(id).then((res) => {
+      console.log("handleChange-getInstInforById-res:", res);
       this.setState((sta) => (sta.everyData = res.instance));
       console.log("handleChange-state.everyData", this.state);
     });
@@ -290,29 +294,18 @@ class Instances extends Component {
     });
   };
   componentDidMount() {
-    const _this = this;
-    insListApi()
-      .then((res) => {
-        console.log("componentDidMount-instances:", res);
-        _this.setState({
-          instances: res.instances,
-          isLoaded: true,
-          total: res.total,
-        });
-      })
-      .catch((error) => {
-        _this.setState({
-          isLoaded: false,
-          error: error,
-        });
-      });
+    const { instList } = this.props.inst;
+    const { handleFetchInstList } = this.props;
+    if (!instList || instList.length === 0) {
+      handleFetchInstList();
+    }
   }
   loadData = (page, pageSize) => {
     console.log("ins-loadData~~", page, pageSize);
     const _this = this;
     const offset = (page - 1) * pageSize;
     const limit = pageSize;
-    insListApi(offset, limit)
+    instListApi(offset, limit)
       .then((res) => {
         console.log("loadData", res);
         _this.setState({
@@ -337,7 +330,7 @@ class Instances extends Component {
     const offset = (page - 1) * num;
     const limit = num;
     console.log("instance-toSelectchange~limit:", offset, limit);
-    insListApi(offset, limit)
+    instListApi(offset, limit)
       .then((res) => {
         console.log("loadData", res);
         _this.setState({
@@ -365,7 +358,7 @@ class Instances extends Component {
     this.toSelectchange(current, pageSize);
   };
 
-  createInstance = () => {
+  createInstances = () => {
     this.props.history.push("/instances/new");
   };
 
@@ -466,11 +459,11 @@ class Instances extends Component {
   handleUpdateList = (id, paramsObj) => {
     console.log("hangleUpdateList", paramsObj, id);
     if (id) {
-      editInsInfor(id, paramsObj)
+      editInstInfor(id, paramsObj)
         .then((res) => {
           // let _json = res.data;
           // if (_json.return_code === "0") {
-          console.log("handleUpdateList-editInsInfor:", res);
+          console.log("handleUpdateList-editInstInfor:", res);
           // } else {
           //   message.error(res.message);
           // }
@@ -485,36 +478,40 @@ class Instances extends Component {
       visible: false,
     });
   };
+  filter = (event) => {
+    this.props.handleFilterInstList(event.target.value);
+  };
   render() {
     const { data, everyData } = this.state;
     console.log(data, "data");
+    const { filteredList, isLoading } = this.props.inst;
     return (
       <div>
         <Row>
           <Col span={24}>
             <Card
               title={
-                "Instance Manage Panel" + "(Total: " + this.state.total + ")"
+                "Instance Manage Panel" + "(Total: " + filteredList.length + ")"
               }
               extra={
-                <>
-                  <DataFilter
+                <div>
+                  <Search
                     placeholder="Search..."
-                    onSearch={(value) => console.log(value)}
+                    onChange={this.filter}
                     enterButton
                   />
                   <Button
                     style={{
                       float: "right",
-                      "padding-left": "10px",
-                      "padding-right": "10px",
+                      paddingLeft: "10px",
+                      paddingRight: "10px",
                     }}
                     type="primary"
-                    onClick={this.createInstance}
+                    onClick={this.createInstances}
                   >
                     Create
                   </Button>
-                </>
+                </div>
               }
             >
               <Row>
@@ -523,15 +520,15 @@ class Instances extends Component {
                     rowKey="ID"
                     // columns={loginInfo.isAdmin ? this.columns : this.columns2}
                     columns={this.columns}
-                    dataSource={this.state.instances}
+                    dataSource={filteredList}
                     bordered
-                    total={this.state.total}
+                    total={filteredList.length}
                     pageSize={this.state.pageSize}
                     // scroll={{ y: 600, x: 600 }}
                     onPaginationChange={this.onPaginationChange}
                     onShowSizeChange={this.onShowSizeChange}
                     pageSizeOptions={this.state.pageSizeOptions}
-                    loading={!this.state.isLoaded}
+                    loading={isLoading}
                   />
                   <InstModal
                     visible={this.state.visible}
@@ -554,11 +551,22 @@ class Instances extends Component {
     );
   }
 }
-const mapStateToProps = (state, ownProps) => {
-  console.log("mapStateToProps-instance:", state);
-  // var loginInfo = JSON.parse(state.loginInfo);
-  // console.log("mapStateToProps-isadmin:", JSON.parse(state.loginInfo));
 
-  return state;
+const mapStateToProps = ({ inst, loginInfo }) => {
+  console.log("mapStateToProps-state", inst);
+  return {
+    inst,
+    loginInfo,
+  };
 };
-export default connect(mapStateToProps)(Instances);
+
+const mapDispatchToProps = (dispatch) => {
+  return {
+    handleFetchInstList: () => dispatch(fetchInstList()),
+    handleFilterInstList: (keyword) => dispatch(filterInstList(keyword)),
+  };
+};
+export default compose(
+  withRouter,
+  connect(mapStateToProps, mapDispatchToProps)
+)(Instances);

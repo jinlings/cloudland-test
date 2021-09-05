@@ -10,8 +10,14 @@ import moment from "moment";
 import { Card, Button, Popconfirm, message, Input } from "antd";
 import { imagesListApi, delImgInfor } from "../../service/images";
 import DataTable from "../../components/DataTable/DataTable";
-import DataFilter from "../../components/Filter/DataFilter";
-
+import { compose } from "redux";
+import { withRouter } from "react-router";
+import { connect } from "react-redux";
+import {
+  filterImageList,
+  fetchImageList,
+} from "../../redux/actions/ImageAction";
+const { Search } = Input;
 class Images extends Component {
   constructor(props) {
     super(props);
@@ -120,21 +126,26 @@ class Images extends Component {
   componentDidMount() {
     const _this = this;
     const limit = this.state.pageSize;
-    imagesListApi(this.state.offset, limit)
-      .then((res) => {
-        console.log("imagesListApi-total:", res.total);
-        _this.setState({
-          images: res.images,
-          isLoaded: true,
-          total: res.total,
-        });
-      })
-      .catch((error) => {
-        _this.setState({
-          isLoaded: false,
-          error: error,
-        });
-      });
+    const { imageList } = this.props.image;
+    const { handleFetchImageList } = this.props;
+    if (!imageList || imageList.length === 0) {
+      handleFetchImageList();
+    }
+    // imagesListApi(this.state.offset, limit)
+    //   .then((res) => {
+    //     console.log("imagesListApi-total:", res.total);
+    //     _this.setState({
+    //       images: res.images,
+    //       isLoaded: true,
+    //       total: res.total,
+    //     });
+    //   })
+    //   .catch((error) => {
+    //     _this.setState({
+    //       isLoaded: false,
+    //       error: error,
+    //     });
+    //   });
   }
   createImages = () => {
     this.props.history.push("/images/new");
@@ -197,43 +208,68 @@ class Images extends Component {
     //当几条一页的值改变后调用函数，current：改变显示条数时当前数据所在页；pageSize:改变后的一页显示条数
     this.toSelectchange(current, pageSize);
   };
+  filter = (event) => {
+    this.props.handleFilterImageList(event.target.value);
+  };
   render() {
+    const { filteredList, isLoading } = this.props.image;
+
     return (
       <Card
-        title={"Image Manage Panel" + "(Total: " + this.state.total + ")"}
+        title={"Image Manage Panel" + "(Total: " + filteredList.length + ")"}
         extra={
-          <>
-            <DataFilter
+          <div>
+            <Search
               placeholder="Search..."
-              onSearch={(value) => console.log(value)}
+              onChange={this.filter}
               enterButton
             />
-
             <Button
-              style={{ float: "right" }}
+              style={{
+                float: "right",
+                paddingLeft: "10px",
+                paddingRight: "10px",
+              }}
               type="primary"
               onClick={this.createImages}
             >
               Create
             </Button>
-          </>
+          </div>
         }
       >
         <DataTable
           rowKey="ID"
           columns={this.columns}
-          dataSource={this.state.images}
+          dataSource={filteredList}
           bordered
-          total={this.state.total}
+          total={filteredList.length}
           pageSize={this.state.pageSize}
           scroll={{ y: 600 }}
           onPaginationChange={this.onPaginationChange}
           onShowSizeChange={this.onShowSizeChange}
           pageSizeOptions={this.state.pageSizeOptions}
-          loading={!this.state.isLoaded}
+          loading={isLoading}
         />
       </Card>
     );
   }
 }
-export default Images;
+
+const mapStateToProps = ({ image }) => {
+  console.log("mapStateToProps-state", image);
+  return {
+    image,
+  };
+};
+
+const mapDispatchToProps = (dispatch) => {
+  return {
+    handleFetchImageList: () => dispatch(fetchImageList()),
+    handleFilterImageList: (keyword) => dispatch(filterImageList(keyword)),
+  };
+};
+export default compose(
+  withRouter,
+  connect(mapStateToProps, mapDispatchToProps)
+)(Images);

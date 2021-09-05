@@ -6,11 +6,18 @@ SPDX-License-Identifier: Apache-2.0
 
 */
 import React, { Component } from "react";
-import { Card, Button, Popconfirm, message } from "antd";
+import { Card, Button, Popconfirm, message, Input } from "antd";
 import { Link } from "react-router-dom";
 import { secgroupsListApi, delSecgroupInfor } from "../../service/secgroups";
+import {
+  filterSecgroupList,
+  fetchSecgroupList,
+} from "../../redux/actions/SecgroupAction";
+import { compose } from "redux";
+import { withRouter } from "react-router";
+import { connect } from "react-redux";
 import DataTable from "../../components/DataTable/DataTable";
-import DataFilter from "../../components/Filter/DataFilter";
+const { Search } = Input;
 
 class Secgroups extends Component {
   constructor(props) {
@@ -116,23 +123,12 @@ class Secgroups extends Component {
 
   //组件初始化的时候执行
   componentDidMount() {
-    const _this = this;
     console.log("componentDidMount:", this);
-    secgroupsListApi()
-      .then((res) => {
-        _this.setState({
-          secgroups: res.secgroups,
-          isLoaded: true,
-          total: res.total,
-        });
-        console.log(res);
-      })
-      .catch((error) => {
-        _this.setState({
-          isLoaded: false,
-          error: error,
-        });
-      });
+    const { secgroupList } = this.props.secgroup;
+    const { handleFetchSecgroupList } = this.props;
+    if (!secgroupList || secgroupList.length === 0) {
+      handleFetchSecgroupList();
+    }
   }
   createSecgroups = () => {
     this.props.history.push("/secgroups/new");
@@ -194,48 +190,70 @@ class Secgroups extends Component {
     //当几条一页的值改变后调用函数，current：改变显示条数时当前数据所在页；pageSize:改变后的一页显示条数
     this.toSelectchange(current, pageSize);
   };
+  filter = (event) => {
+    this.props.handleFilterSecgroupList(event.target.value);
+  };
   render() {
+    const { filteredList, isLoading } = this.props.secgroup;
     return (
       <Card
         title={
-          "Security Group Manage Panel" + "(Total: " + this.state.total + ")"
+          "Security Group Manage Panel" + "(Total: " + filteredList.length + ")"
         }
         extra={
-          <>
-            <DataFilter
+          <div>
+            <Search
               placeholder="Search..."
-              onSearch={(value) => console.log(value)}
+              onChange={this.filter}
               enterButton
             />
             <Button
               style={{
                 float: "right",
-                "padding-left": "10px",
-                "padding-right": "10px",
+                paddingLeft: "10px",
+                paddingRight: "10px",
               }}
               type="primary"
               onClick={this.createSecgroups}
             >
               Create
             </Button>
-          </>
+          </div>
         }
       >
         <DataTable
           rowKey="ID"
           columns={this.columns}
-          dataSource={this.state.secgroups}
+          dataSource={filteredList}
           bordered
-          total={this.state.total}
+          total={filteredList.length}
           pageSize={this.state.pageSize}
           scroll={{ y: 600 }}
           onPaginationChange={this.onPaginationChange}
           onShowSizeChange={this.onShowSizeChange}
           pageSizeOptions={this.state.pageSizeOptions}
-          loading={!this.state.isLoaded}
+          loading={isLoading}
         />
       </Card>
     );
   }
 }
-export default Secgroups;
+
+const mapStateToProps = ({ secgroup }) => {
+  console.log("mapStateToProps-state", secgroup);
+  return {
+    secgroup,
+  };
+};
+
+const mapDispatchToProps = (dispatch) => {
+  return {
+    handleFetchSecgroupList: () => dispatch(fetchSecgroupList()),
+    handleFilterSecgroupList: (keyword) =>
+      dispatch(filterSecgroupList(keyword)),
+  };
+};
+export default compose(
+  withRouter,
+  connect(mapStateToProps, mapDispatchToProps)
+)(Secgroups);
