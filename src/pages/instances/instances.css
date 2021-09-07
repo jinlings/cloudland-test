@@ -1,0 +1,47 @@
+/*
+
+Copyright <holder> All Rights Reserved
+
+SPDX-License-Identifier: Apache-2.0
+
+*/
+.ant-row ant-form-item keys {
+  margin-right: 100px;
+  margin-left: 192px;
+}
+.ant-col ant-col-6 ant-col-offset-4 ant-form-item-label {
+  margin-right: 8px;
+}
+
+.actionStyle {
+  margin-top: 5px;
+}
+
+.ant-btn .anticon {
+  transform: rotate(90deg);
+}
+
+.ant-table-thead > tr > th,
+.ant-table-tbody > tr > td {
+  padding: 5px !important;
+}
+
+.ant-table-fixed {
+  table-layout: auto;
+}
+
+.ant-table-tbody > tr > td {
+  word-wrap: break-word;
+  word-break: break-all;
+}
+.columnHidden {
+  display: none;
+}
+
+.ant-input-group-wrapper {
+  width: 70% !important;
+}
+
+.ant-card-extra {
+  width: 68%;
+}
